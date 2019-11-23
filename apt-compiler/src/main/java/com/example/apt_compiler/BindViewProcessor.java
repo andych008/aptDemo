@@ -16,10 +16,12 @@ import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
+import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedOptions;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -28,9 +30,11 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
 
 @SupportedSourceVersion(SourceVersion.RELEASE_7)
 @SupportedAnnotationTypes("com.example.apt_annotation.BindView")
+@SupportedOptions({ "debug" })
 @AutoService(Processor.class)
 public class BindViewProcessor extends AbstractProcessor {
 
@@ -39,6 +43,8 @@ public class BindViewProcessor extends AbstractProcessor {
     private Filer mFilerUtils;       // 文件管理工具类
     private Types mTypesUtils;    // 类型处理工具类
     private Elements mElementsUtils;  // Element处理工具类
+    private Messager messager;
+    private boolean isDebug;
 
     private Map<TypeElement, Set<ViewInfo>> mToBindMap = new HashMap<>(); //用于记录需要绑定的View的名称和对应的id
 
@@ -49,6 +55,9 @@ public class BindViewProcessor extends AbstractProcessor {
         mFilerUtils = processingEnv.getFiler();
         mTypesUtils = processingEnv.getTypeUtils();
         mElementsUtils = processingEnv.getElementUtils();
+
+        messager = processingEnv.getMessager();
+        isDebug = Boolean.parseBoolean(processingEnv.getOptions().get("debug"));
     }
 
     /*
@@ -93,7 +102,9 @@ public class BindViewProcessor extends AbstractProcessor {
             }
             BindView bindAnnotation = variableElement.getAnnotation(BindView.class);    //获取到一个变量的注解
             int id = bindAnnotation.value();    //取出注解中的value值，这个值就是这个view要绑定的xml中的id
-            views.add(new ViewInfo(variableElement.getSimpleName().toString(), id));    //把要绑定的View的信息存进views中
+            String field = variableElement.getSimpleName().toString();
+            log(String.format("bind : %s <--> %d", field, id));
+            views.add(new ViewInfo(field, id));    //把要绑定的View的信息存进views中
         }
     }
 
@@ -126,6 +137,11 @@ public class BindViewProcessor extends AbstractProcessor {
         }
     }
 
+    private void log(String msg) {
+        if (isDebug) {
+            messager.printMessage(Diagnostic.Kind.NOTE, msg);
+        }
+    }
 
 
 
