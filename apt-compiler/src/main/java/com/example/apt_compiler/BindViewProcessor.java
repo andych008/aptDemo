@@ -1,7 +1,6 @@
 package com.example.apt_compiler;
 
 import com.example.apt_annotation.BindView;
-import com.google.auto.service.AutoService;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
@@ -18,7 +17,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedOptions;
@@ -28,14 +26,14 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
-@SupportedSourceVersion(SourceVersion.RELEASE_7)
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
 @SupportedAnnotationTypes("com.example.apt_annotation.BindView")
 @SupportedOptions({ "debug" })
-@AutoService(Processor.class)
 public class BindViewProcessor extends AbstractProcessor {
 
     private static final String _SUFFIX = "$$Autobind";
@@ -103,8 +101,9 @@ public class BindViewProcessor extends AbstractProcessor {
             BindView bindAnnotation = variableElement.getAnnotation(BindView.class);    //获取到一个变量的注解
             int id = bindAnnotation.value();    //取出注解中的value值，这个值就是这个view要绑定的xml中的id
             String field = variableElement.getSimpleName().toString();
-            log(String.format("bind : %s <--> %d", field, id));
-            views.add(new ViewInfo(field, id));    //把要绑定的View的信息存进views中
+            TypeMirror typeMirror = variableElement.asType();
+            log(String.format("bind : (%s) %s <--> id = %d", typeMirror, field, id));
+            views.add(new ViewInfo(typeMirror, field, id));    //把要绑定的View的信息存进views中
         }
     }
 
@@ -120,7 +119,7 @@ public class BindViewProcessor extends AbstractProcessor {
                 .addStatement("$T substitute = ($T)target", className, className);
 
         for (ViewInfo viewInfo : mToBindMap.get(typeElement)) { //遍历每一个需要绑定的view
-            injectMethod.addStatement("substitute.$L = substitute.findViewById($L)", viewInfo.viewName, viewInfo.id);
+            injectMethod.addStatement("substitute.$L = ($L) substitute.findComponentById($L)", viewInfo.viewName, viewInfo.typeMirror.toString(), viewInfo.id);
         }
 
         TypeSpec helperClass = TypeSpec.classBuilder(simpleName + _SUFFIX)
@@ -147,10 +146,12 @@ public class BindViewProcessor extends AbstractProcessor {
 
     //要绑定的View的信息载体
     class ViewInfo {
+        TypeMirror typeMirror;    //view的类型
         String viewName;    //view的变量名
         int id; //xml中的id
 
-        public ViewInfo(String viewName, int id) {
+        public ViewInfo(TypeMirror typeMirror, String viewName, int id) {
+            this.typeMirror = typeMirror;
             this.viewName = viewName;
             this.id = id;
         }
