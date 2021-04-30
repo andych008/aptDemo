@@ -91,7 +91,10 @@ public class BindViewProcessor extends AbstractProcessor {
 
     private void categories(Set<? extends Element> elements) {
         for (Element element : elements) {  //遍历每一个element
+
+            log(String.format("element : (%s) %s ", element.getKind(), element));
             VariableElement variableElement = (VariableElement) element;    //被@BindView标注的应当是变量，这里简单的强制类型转换
+
             TypeElement enclosingElement = (TypeElement) variableElement.getEnclosingElement(); //获取代表Activity的TypeElement
             Set<ViewInfo> views = mToBindMap.get(enclosingElement); //views储存着一个Activity中将要绑定的view的信息
             if (views == null) {    //如果views不存在就new一个
